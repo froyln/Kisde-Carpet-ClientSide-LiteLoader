@@ -49,6 +49,9 @@ public abstract class TaskPasteSchematicPerChunkCommandMixin implements Assisted
     @Shadow private int currentIndex;
     @Shadow private int boxVolume;
     @Shadow private boolean boxInProgress;
+    @Shadow private void summonEntities(IntBoundingBox box, WorldSchematic schematic, EntityPlayerSP sender) {
+        throw new AssertionError();
+    }
 
     @Inject(method = "processBox", at = @At("HEAD"), cancellable = true)
     private void bulletcarpet$pasteServerBlockEntities(ChunkPos chunk, IntBoundingBox box, WorldSchematic schematic, WorldClient clientWorld, EntityPlayerSP sender, CallbackInfoReturnable<Boolean> cir) {
@@ -94,6 +97,7 @@ public abstract class TaskPasteSchematicPerChunkCommandMixin implements Assisted
                 return;
             }
         }
+        this.summonEntities(box, schematic, sender);
         this.boxInProgress = false;
         cir.setReturnValue(true);
     }
