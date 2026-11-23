@@ -1,5 +1,6 @@
 package dev.bulletcarpet.mixin;
 
+import io.netty.buffer.ByteBufInputStream;
 import fi.dy.masa.litematica.network.SchematicSavePacketHandler;
 import fi.dy.masa.litematica.schematic.ISchematicRegion;
 import fi.dy.masa.litematica.schematic.LitematicaSchematic;
@@ -8,6 +9,8 @@ import net.minecraft.block.Block;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.nbt.CompressedStreamTools;
+import net.minecraft.nbt.NBTSizeTracker;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.PacketBuffer;
@@ -32,27 +35,27 @@ import java.util.UUID;
 public abstract class SchematicSavePacketHandlerMixin {
     private static final long MAX_BLOCKS = 32768;
 
+    private static final int MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+    private static final long MAX_CAPTURE_NBT_READ = 64L * 1024 * 1024;
+
     @Shadow(remap = false) @Final protected HashMap<UUID, MultiplayerCreateSchematicTask> pendingSaveTasks;
     @Shadow(remap = false) public abstract void removeSaveTask(UUID id);
 
     @Inject(method = "onPacketReceived", at = @At("HEAD"), cancellable = true, remap = false)
     private void bulletcarpet$validateBeforeNativeRead(PacketBuffer packet, CallbackInfo ci) {
         if (this.pendingSaveTasks.isEmpty()) return;
-        int readerIndex = packet.readerIndex();
+        ci.cancel();
         NBTTagCompound data;
         try {
-            data = packet.readCompoundTag();
+            if (packet.readableBytes() > MAX_RESPONSE_BYTES) throw new IOException("Response too large");
+            data = CompressedStreamTools.read(new ByteBufInputStream(packet), new NBTSizeTracker(MAX_CAPTURE_NBT_READ));
             if (packet.isReadable()) throw new IOException("Trailing data");
         } catch (Exception e) {
-            packet.readerIndex(readerIndex);
             failAll("Rejected malformed server schematic data");
-            ci.cancel();
             return;
         }
-        packet.readerIndex(readerIndex);
         if (data == null) {
             failAll("Rejected empty server schematic data");
-            ci.cancel();
             return;
         }
         UUID id = readUuid(data);
@@ -60,17 +63,14 @@ public abstract class SchematicSavePacketHandlerMixin {
         if (task == null) return;
         if (data.hasKey("Error", 8)) {
             fail(id, "Server schematic capture failed: " + data.getString("Error"));
-            ci.cancel();
             return;
         }
         try {
             validate(data, ((MultiplayerCreateSchematicTaskAccessor) task).bulletcarpet$getSchematic());
-            packet.clear();
-            packet.writeCompoundTag(data);
-            packet.readerIndex(0);
-        } catch (RuntimeException e) {
+            task.getClass().getMethod("onReceiveData", NBTTagCompound.class).invoke(task, data);
+            removeSaveTask(id);
+        } catch (ReflectiveOperationException | RuntimeException e) {
             fail(id, "Rejected invalid server schematic data: " + e.getMessage());
-            ci.cancel();
         }
     }
 
