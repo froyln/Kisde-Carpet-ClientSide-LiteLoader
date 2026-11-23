@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(World.class)
 public interface WorldAccessor {
+    @Invoker("getEntitiesWithinAABBExcludingEntity") java.util.List<net.minecraft.entity.Entity> bulletcarpet$getEntities(net.minecraft.entity.Entity excluded, net.minecraft.util.math.AxisAlignedBB bounds);
     @Invoker("getBlockState") IBlockState bulletcarpet$getBlockState(BlockPos pos);
     @Invoker("getTileEntity") TileEntity bulletcarpet$getTileEntity(BlockPos pos);
 }

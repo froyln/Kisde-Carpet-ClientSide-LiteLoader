@@ -14,6 +14,10 @@ public final class SchematicWorldAccess {
         return ((WorldAccessor) (Object) world).bulletcarpet$getBlockState(pos);
     }
 
+    public static java.util.List<net.minecraft.entity.Entity> getEntities(WorldSchematic world, net.minecraft.util.math.AxisAlignedBB bounds) {
+        return ((WorldAccessor) (Object) world).bulletcarpet$getEntities(null, bounds);
+    }
+
     public static TileEntity getTileEntity(WorldSchematic world, BlockPos pos) {
         return ((WorldAccessor) (Object) world).bulletcarpet$getTileEntity(pos);
     }

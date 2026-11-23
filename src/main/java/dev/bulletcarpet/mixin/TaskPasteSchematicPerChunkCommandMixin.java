@@ -39,6 +39,7 @@ public abstract class TaskPasteSchematicPerChunkCommandMixin implements Assisted
     @Unique private long bulletcarpet$operation;
     @Unique private int bulletcarpet$sequence;
     @Unique private boolean bulletcarpet$operationClosed;
+    @Unique private final java.util.Set<java.util.UUID> bulletcarpet$summonedRoots = new java.util.HashSet<>();
 
     @Shadow @Final private int maxCommandsPerTick;
     @Shadow private int sentCommandsThisTick;
@@ -100,6 +101,27 @@ public abstract class TaskPasteSchematicPerChunkCommandMixin implements Assisted
         this.summonEntities(box, schematic, sender);
         this.boxInProgress = false;
         cir.setReturnValue(true);
+    }
+
+    @Inject(method = "summonEntities", at = @At("HEAD"), cancellable = true, remap = false)
+    private void bulletcarpet$keepRidingGroups(IntBoundingBox box, WorldSchematic schematic, EntityPlayerSP sender, CallbackInfo ci) {
+        if (!LiteModBulletCarpet.isAssistedPasteEnabled() || Minecraft.getMinecraft().isSingleplayer()) return;
+        ci.cancel();
+        try {
+            net.minecraft.util.math.AxisAlignedBB bounds = new net.minecraft.util.math.AxisAlignedBB(
+                    box.minX, box.minY, box.minZ, box.maxX + 1.0, box.maxY + 1.0, box.maxZ + 1.0);
+            for (net.minecraft.entity.Entity entity : SchematicWorldAccess.getEntities(schematic, bounds)) {
+                if (this.bulletcarpet$summonedRoots.contains(entity.getUniqueID())) continue;
+                String command = dev.bulletcarpet.RidingEntitySummon.command(entity);
+                if (command != null) {
+                    sender.sendChatMessage(command);
+                    this.bulletcarpet$summonedRoots.add(entity.getUniqueID());
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            sender.sendMessage(new net.minecraft.util.text.TextComponentString("[Kisde-Carpet] Entity paste stopped: " + e.getMessage()));
+            ((TaskPasteSchematicPerChunkCommand) (Object) this).stop();
+        }
     }
 
     @Inject(method = "execute", at = @At("RETURN"), remap = false)

@@ -95,3 +95,9 @@ task inventoryPreviewCheck(type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     main = 'dev.bulletcarpet.InventoryCameraCheck'
 }
+
+task ridingEntitySummonCheck(type: JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    main = 'dev.bulletcarpet.RidingEntitySummonCheck'
+}
